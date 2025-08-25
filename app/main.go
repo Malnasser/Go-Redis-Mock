@@ -6,9 +6,7 @@ import (
 	"log"
 	"net"
 	"os"
-	"os/signal"
 	"sync"
-	"syscall"
 )
 
 // Ensures gofmt doesn't remove the "net" and "os" imports in stage 1 (feel free to remove this!)
@@ -29,13 +27,13 @@ func run() (err error) {
 		os.Exit(1)
 	}
 
+	log.Printf("Server start listening on port: ", l.Addr())
+
 	defer closeIt(l)
 
-	quit := make(chan os.Signal, 1)
-	signal.Notify(quit, syscall.SIGINT, syscall.SIGALRM)
 	var wg sync.WaitGroup
 
-	go func() {
+	for {
 		conn, err := l.Accept()
 		if err != nil {
 			log.Fatal("Error creating connection: ", err.Error())
@@ -43,7 +41,7 @@ func run() (err error) {
 		}
 		wg.Add(1)
 		go handleConnection(conn, &wg)
-	}()
+	}
 
 	return nil
 }
@@ -64,6 +62,8 @@ func handleConnection(conn net.Conn, wg *sync.WaitGroup) {
 		if errors.Is(err, io.EOF) {
 			break
 		}
+
+		log.Printf("New read with length %v", n)
 
 		_, err = conn.Write([]byte("+PONG\r\n"))
 		if err != nil {
