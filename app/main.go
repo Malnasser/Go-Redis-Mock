@@ -6,6 +6,9 @@ import (
 	"log"
 	"net"
 	"os"
+	"os/signal"
+	"sync"
+	"syscall"
 )
 
 // Ensures gofmt doesn't remove the "net" and "os" imports in stage 1 (feel free to remove this!)
@@ -15,25 +18,33 @@ var (
 )
 
 func main() {
-	run()
+	if err := run(); err != nil {
+		log.Fatal("Error starting the server: ", err.Error())
+	}
 }
 
 func run() (err error) {
 	l, err := net.Listen("tcp", "0.0.0.0:6379")
 	if err != nil {
-		log.Fatal("Error establising listener to port %v", l.Addr())
 		os.Exit(1)
 	}
 
 	defer closeIt(l)
 
-	conn, err := l.Accept()
-	if err != nil {
-		log.Fatal("Error creating connection: ", err.Error())
-		os.Exit(1)
-	}
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGALRM)
+	var wg sync.WaitGroup
 
-	go handleConnection(conn)
+	go func() {
+		conn, err := l.Accept()
+		if err != nil {
+			log.Fatal("Error creating connection: ", err.Error())
+			os.Exit(1)
+		}
+		wg.Add(1)
+		go handleConnection(conn, &wg)
+	}()
+
 	return nil
 }
 
@@ -44,7 +55,9 @@ func closeIt(l net.Listener) {
 	}
 }
 
-func handleConnection(conn net.Conn) {
+func handleConnection(conn net.Conn, wg *sync.WaitGroup) {
+	defer conn.Close()
+	defer wg.Done()
 	data := make([]byte, 2046)
 	for {
 		n, err := conn.Read(data)
@@ -52,13 +65,9 @@ func handleConnection(conn net.Conn) {
 			break
 		}
 
-		log.Println("commend %v%s", data[:n])
-
 		_, err = conn.Write([]byte("+PONG\r\n"))
 		if err != nil {
 			break
 		}
 	}
-
-	conn.Close()
 }
