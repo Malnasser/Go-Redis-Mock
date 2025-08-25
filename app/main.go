@@ -42,7 +42,7 @@ func run() (err error) {
 
 		log.Println("commend %v%s", data[:n])
 
-		_, err = conn.Write([]byte("+PING\r\n"))
+		_, err = conn.Write([]byte("+PONG\r\n"))
 	}
 
 	return nil
