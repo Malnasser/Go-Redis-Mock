@@ -33,6 +33,18 @@ func run() (err error) {
 		os.Exit(1)
 	}
 
+	go handleConnection(conn)
+	return nil
+}
+
+func closeIt(l net.Listener) {
+	err := l.Close()
+	if err != nil {
+		log.Fatal("Fail to close application")
+	}
+}
+
+func handleConnection(conn net.Conn) {
 	data := make([]byte, 2046)
 	for {
 		n, err := conn.Read(data)
@@ -43,14 +55,10 @@ func run() (err error) {
 		log.Println("commend %v%s", data[:n])
 
 		_, err = conn.Write([]byte("+PONG\r\n"))
+		if err != nil {
+			break
+		}
 	}
 
-	return nil
-}
-
-func closeIt(l net.Listener) {
-	err := l.Close()
-	if err != nil {
-		log.Fatal("Fail to close application")
-	}
+	conn.Close()
 }
