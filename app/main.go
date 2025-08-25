@@ -1,8 +1,9 @@
 package main
 
 import (
-	"bytes"
-	"fmt"
+	"errors"
+	"io"
+	"log"
 	"net"
 	"os"
 )
@@ -14,31 +15,42 @@ var (
 )
 
 func main() {
-	// You can use print statements as follows for debugging, they'll be visible when running tests.
-	fmt.Println("Logs from your program will appear here!")
+	run()
+}
 
+func run() (err error) {
 	l, err := net.Listen("tcp", "0.0.0.0:6379")
 	if err != nil {
-		fmt.Println("Failed to bind to port 6379")
+		log.Fatal("Error establising listener to port %v", l.Addr())
 		os.Exit(1)
 	}
 
+	defer closeIt(l)
+
+	conn, err := l.Accept()
+	if err != nil {
+		log.Fatal("Error creating connection: ", err.Error())
+		os.Exit(1)
+	}
+
+	data := make([]byte, 2046)
 	for {
-		conn, err := l.Accept()
-		if err != nil {
-			fmt.Println("Error accepting connection: ", err.Error())
-			continue
+		n, err := conn.Read(data)
+		if errors.Is(err, io.EOF) {
+			break
 		}
 
-		buf := make([]byte, 1021)
-		n, err := conn.Read(buf)
-		if err != nil {
-			fmt.Println("Error reading from client: ", err.Error())
-		}
+		log.Println("commend %v%s", data[:n])
 
-		pingCount := bytes.Count(buf[:n], []byte("PING"))
-		for i := 0; i < pingCount; i++ {
-			conn.Write([]byte("+PONG\r\n"))
-		}
+		_, err = conn.Write([]byte("+PING\r\n"))
+	}
+
+	return nil
+}
+
+func closeIt(l net.Listener) {
+	err := l.Close()
+	if err != nil {
+		log.Fatal("Fail to close application")
 	}
 }
