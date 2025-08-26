@@ -30,7 +30,7 @@ redis-cli set mykey "hello"
 redis-cli get mykey
 
 # With expiration (expires in 5 seconds)
-redis-cli set tempkey "temporary" EX 5
+redis-cli set tempkey "temporary" PX 5
 redis-cli get tempkey  # returns "temporary"
 # Wait 5+ seconds...
 redis-cli get tempkey  # returns (nil)
