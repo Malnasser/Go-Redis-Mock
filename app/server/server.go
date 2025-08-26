@@ -4,8 +4,10 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/codecrafters-io/redis-starter-go/app/resp"
 )
@@ -13,6 +15,7 @@ import (
 type RedisServer struct {
 	address string
 	storage map[string]string
+	exp     map[string]time.Time
 	mu      sync.RWMutex
 }
 
@@ -20,6 +23,7 @@ func NewRedisServer(address string) *RedisServer {
 	return &RedisServer{
 		address: address,
 		storage: make(map[string]string),
+		exp:     make(map[string]time.Time),
 	}
 }
 
@@ -43,7 +47,7 @@ func (s *RedisServer) Start() (err error) {
 func (s *RedisServer) handleConnection(conn net.Conn) {
 	defer conn.Close()
 
-	fmt.Printf("New connection %v", conn.RemoteAddr())
+	fmt.Println("New connection %v", conn.RemoteAddr())
 
 	// Create a buffered reader with the sample data
 	reader := resp.NewReader(conn)
@@ -93,13 +97,22 @@ func (s *RedisServer) processCommand(value resp.Value) resp.Value {
 		return resp.Value{Type: resp.BulkString, String: args[1]}
 
 	case "SET":
-		if len(args) != 3 {
+		if len(args) < 3 {
 			return resp.Value{Type: resp.Error, String: "Err wrong number of args"}
 		}
 		key, value := args[1], args[2]
 		s.mu.Lock()
+		defer s.mu.Unlock()
 		s.storage[key] = value
-		s.mu.Unlock()
+
+		if len(args) == 5 && strings.ToUpper(args[3]) == "PX" {
+			ms, err := strconv.Atoi(args[4])
+			if err != nil || ms <= 0 {
+				return resp.Value{Type: resp.Error, String: "Error invlid expire time"}
+			}
+			s.exp[key] = time.Now().Add(time.Duration(ms) * time.Millisecond)
+		}
+
 		return resp.Value{Type: resp.SimpleString, String: "OK"}
 
 	case "GET":
@@ -108,12 +121,26 @@ func (s *RedisServer) processCommand(value resp.Value) resp.Value {
 		}
 		key := args[1]
 		s.mu.RLock()
-		value, exists := s.storage[key]
-		s.mu.RUnlock()
-		if exists {
-			return resp.Value{Type: resp.BulkString, String: value}
+
+		val, exists := s.storage[key]
+		if !exists {
+			s.mu.RUnlock()
+			return resp.Value{Type: resp.BulkString, String: ""}
 		}
-		return resp.Value{Type: resp.Error, String: ""}
+
+		if expireTime, hasExpiry := s.exp[key]; hasExpiry {
+			if time.Now().After(expireTime) {
+				s.mu.RUnlock()
+				s.mu.Lock()
+				delete(s.storage, key)
+				delete(s.exp, key)
+				s.mu.Unlock()
+				return resp.Value{Type: resp.BulkString, String: ""}
+			}
+		}
+
+		s.mu.RUnlock()
+		return resp.Value{Type: resp.BulkString, String: val}
 
 	default:
 		return resp.Value{Type: resp.Error, String: fmt.Sprintf("Err unknown command")}
