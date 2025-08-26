@@ -1,7 +1,6 @@
 package server
 
 import (
-	"fmt"
 	"log"
 	"net"
 	"os"
@@ -25,13 +24,6 @@ func RunRedisServer() (err error) {
 		}
 	}()
 
-	errorChannel := make(chan error, 10)
-	go func() {
-		for err := range errorChannel {
-			log.Printf("Connection error: %v", err)
-		}
-	}()
-
 	var connectionWG sync.WaitGroup
 	for {
 		conn, err := l.Accept()
@@ -39,11 +31,11 @@ func RunRedisServer() (err error) {
 			return err
 		}
 		connectionWG.Add(1)
-		go handleConnection(conn, &connectionWG, errorChannel)
+		go handleConnection(conn, &connectionWG)
 	}
 }
 
-func handleConnection(conn net.Conn, wg *sync.WaitGroup, errChan chan error) {
+func handleConnection(conn net.Conn, wg *sync.WaitGroup) {
 	defer conn.Close()
 	defer wg.Done()
 
@@ -51,16 +43,14 @@ func handleConnection(conn net.Conn, wg *sync.WaitGroup, errChan chan error) {
 	reader := resp.NewReader(conn)
 	writer := resp.NewWriter(conn)
 
-	// Parse the entire nested command
-	parsedValue, err := reader.Parse()
-	if err != nil {
-		log.Fatal("Error reading command: ", err)
-	}
-	fmt.Printf("%v", parsedValue.Stringify())
-
-	response := command.ProcessCommand(parsedValue)
-
-	if err := writer.WriteValue(response); err != nil {
-		return
+	for {
+		parsedValue, err := reader.Parse()
+		if err != nil {
+			return
+		}
+		response := command.ProcessCommand(parsedValue)
+		if err := writer.WriteValue(response); err != nil {
+			return
+		}
 	}
 }
