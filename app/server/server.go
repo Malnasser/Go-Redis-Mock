@@ -61,7 +61,6 @@ func handleConnection(conn net.Conn, wg *sync.WaitGroup, errChan chan error) {
 	response := command.ProcessCommand(parsedValue)
 
 	if err := writer.WriteValue(response); err != nil {
-		log.Fatal("Error writing response: ", err)
 		return
 	}
 }

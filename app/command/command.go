@@ -39,6 +39,6 @@ func ProcessCommand(value resp.Value) resp.Value {
 		return resp.Value{Type: resp.BulkString, String: args[1]}
 
 	default:
-		return resp.Value{Type: resp.Error, String: fmt.Sprintf("Err unkown command")}
+		return resp.Value{Type: resp.Error, String: fmt.Sprintf("Err unknown command")}
 	}
 }
