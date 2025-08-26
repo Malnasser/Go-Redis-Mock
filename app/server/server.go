@@ -1,43 +1,49 @@
 package server
 
 import (
-	"log"
+	"fmt"
 	"net"
 	"os"
+	"strings"
 	"sync"
 
-	"github.com/codecrafters-io/redis-starter-go/app/command"
 	"github.com/codecrafters-io/redis-starter-go/app/resp"
 )
 
-func RunRedisServer() (err error) {
-	l, err := net.Listen("tcp", "0.0.0.0:6379")
+type RedisServer struct {
+	address string
+	storage map[string]string
+	mu      sync.RWMutex
+}
+
+func NewRedisServer(address string) *RedisServer {
+	return &RedisServer{
+		address: address,
+		storage: make(map[string]string),
+	}
+}
+
+func (s *RedisServer) Start() (err error) {
+	listener, err := net.Listen("tcp", s.address)
 	if err != nil {
 		os.Exit(1)
 	}
 
-	log.Printf("Server start listening on port: %v ", l.Addr())
+	defer listener.Close()
 
-	defer func() {
-		if err := l.Close(); err != nil {
-			log.Fatal("Error closing socket: ", err.Error())
-		}
-	}()
-
-	var connectionWG sync.WaitGroup
 	for {
-		conn, err := l.Accept()
-		if err != nil {
-			return err
+		conn, errer := listener.Accept()
+		if errer != nil {
+			return
 		}
-		connectionWG.Add(1)
-		go handleConnection(conn, &connectionWG)
+		go s.handleConnection(conn)
 	}
 }
 
-func handleConnection(conn net.Conn, wg *sync.WaitGroup) {
+func (s *RedisServer) handleConnection(conn net.Conn) {
 	defer conn.Close()
-	defer wg.Done()
+
+	fmt.Printf("New connection %v", conn.RemoteAddr())
 
 	// Create a buffered reader with the sample data
 	reader := resp.NewReader(conn)
@@ -48,9 +54,68 @@ func handleConnection(conn net.Conn, wg *sync.WaitGroup) {
 		if err != nil {
 			return
 		}
-		response := command.ProcessCommand(parsedValue)
+		response := s.processCommand(parsedValue)
 		if err := writer.WriteValue(response); err != nil {
 			return
 		}
+	}
+}
+
+func (s *RedisServer) processCommand(value resp.Value) resp.Value {
+	if value.Type != resp.Array || len(value.Array) == 0 {
+		return resp.Value{Type: resp.Error, String: "Err invlid command"}
+	}
+
+	args := make([]string, len(value.Array))
+	for i, arg := range value.Array {
+		if arg.Type != resp.BulkString {
+			return resp.Value{Type: resp.Error, String: "ERR invlid command format"}
+		}
+		args[i] = arg.String
+	}
+
+	command := strings.ToUpper(args[0])
+
+	switch command {
+
+	case "PING":
+		if len(args) == 1 {
+			return resp.Value{Type: resp.SimpleString, String: "PONG"}
+		} else if len(args) == 2 {
+			return resp.Value{Type: resp.BulkString, String: args[1]}
+		}
+		return resp.Value{Type: resp.Error, String: "Error wrong number of args"}
+
+	case "ECHO":
+		if len(args) != 2 {
+			return resp.Value{Type: resp.Error, String: "Error wrong number of args for 'ping' commad"}
+		}
+		return resp.Value{Type: resp.BulkString, String: args[1]}
+
+	case "SET":
+		if len(args) != 3 {
+			return resp.Value{Type: resp.Error, String: "Err wrong number of args"}
+		}
+		key, value := args[1], args[2]
+		s.mu.Lock()
+		s.storage[key] = value
+		s.mu.Unlock()
+		return resp.Value{Type: resp.SimpleString, String: "Ok"}
+
+	case "GET":
+		if len(args) != 2 {
+			return resp.Value{Type: resp.Error, String: "Error wrong number of args"}
+		}
+		key := args[1]
+		s.mu.RLock()
+		value, exists := s.storage[key]
+		s.mu.RUnlock()
+		if exists {
+			return resp.Value{Type: resp.BulkString, String: value}
+		}
+		return resp.Value{Type: resp.Error, String: ""}
+
+	default:
+		return resp.Value{Type: resp.Error, String: fmt.Sprintf("Err unknown command")}
 	}
 }

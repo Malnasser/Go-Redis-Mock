@@ -1,21 +1,16 @@
 package main
 
 import (
-	"log"
-	"net"
+	"fmt"
 	"os"
 
 	"github.com/codecrafters-io/redis-starter-go/app/server"
 )
 
-// Ensures gofmt doesn't remove the "net" and "os" imports in stage 1 (feel free to remove this!)
-var (
-	_ = net.Listen
-	_ = os.Exit
-)
-
 func main() {
-	if err := server.RunRedisServer(); err != nil {
-		log.Fatal("Error starting the server: ", err.Error())
+	server := server.NewRedisServer(":6379")
+	if err := server.Start(); err != nil {
+		fmt.Printf("Error starting server: %v\n", err)
+		os.Exit(1)
 	}
 }
