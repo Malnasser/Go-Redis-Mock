@@ -43,7 +43,7 @@ func (r *Reader) parseBulkString() (value Value, err error) {
 		return Value{}, err
 	}
 	if length == -1 {
-		return Value{Type: BulkString, String: ""}, nil
+		return Value{Type: BulkString, Null: true}, nil
 	}
 	bulk := make([]byte, length)
 	if _, err := io.ReadFull(r.reader, bulk); err != nil {

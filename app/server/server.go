@@ -125,7 +125,7 @@ func (s *RedisServer) processCommand(value resp.Value) resp.Value {
 		val, exists := s.storage[key]
 		if !exists {
 			s.mu.RUnlock()
-			return resp.Value{Type: resp.BulkString, String: ""}
+			return resp.Value{Type: resp.BulkString, Null: true}
 		}
 
 		if expireTime, hasExpiry := s.exp[key]; hasExpiry {
@@ -135,7 +135,7 @@ func (s *RedisServer) processCommand(value resp.Value) resp.Value {
 				delete(s.storage, key)
 				delete(s.exp, key)
 				s.mu.Unlock()
-				return resp.Value{Type: resp.BulkString, String: ""}
+				return resp.Value{Type: resp.BulkString, Null: true}
 			}
 		}
 

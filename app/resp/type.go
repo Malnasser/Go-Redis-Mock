@@ -4,7 +4,7 @@ package resp
 const (
 	SimpleString = '+'
 	Error        = '-'
-	integer      = ':'
+	Integer      = ':'
 	BulkString   = '$'
 	Array        = '*'
 )
@@ -15,6 +15,7 @@ type Value struct {
 	String string
 	Int    int64
 	Array  []Value
+	Null   bool
 }
 
 func (v Value) Stringify() string {
@@ -23,7 +24,7 @@ func (v Value) Stringify() string {
 		return "Simeple string: " + v.String
 	case Error:
 		return "Error: " + v.String
-	case integer:
+	case Integer:
 		return "integer: " + string(rune(v.Int))
 	case BulkString:
 		if len(v.String) == -1 {

@@ -19,10 +19,10 @@ func (w *Writer) WriteValue(value Value) error {
 		return w.writeSimpleString(value.String)
 	case Error:
 		return w.writeError(value.String)
-	case integer:
+	case Integer:
 		return w.writeInteger(value.Int)
 	case BulkString:
-		if len(value.String) == -1 {
+		if value.Null {
 			return w.writeNull()
 		}
 		return w.writeBulkString(value.String)
