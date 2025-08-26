@@ -1,33 +1,37 @@
-[![progress-banner](https://backend.codecrafters.io/progress/redis/49ab5286-5e0e-432a-a9b5-29f9e732f8c0)](https://app.codecrafters.io/users/codecrafters-bot?r=2qF)
+# redis-go
 
-This is a starting point for Go solutions to the
-["Build Your Own Redis" Challenge](https://codecrafters.io/challenges/redis).
+A simple Redis server implementation in Go. This is a mock example I built to learn about network programming and the Redis protocol.
 
-In this challenge, you'll build a toy Redis clone that's capable of handling
-basic commands like `PING`, `SET` and `GET`. Along the way we'll learn about
-event loops, the Redis protocol and more.
+## What it does
 
-**Note**: If you're viewing this repo on GitHub, head over to
-[codecrafters.io](https://codecrafters.io) to try the challenge.
+It's a basic Redis clone that handles a few commands:
+- `PING` - returns PONG
+- `ECHO` - echoes back what you send
+- `SET` - stores a key-value pair (with optional expiration)
+- `GET` - retrieves a value by key
 
-# Passing the first stage
+## Running it
 
-The entry point for your Redis implementation is in `app/main.go`. Study and
-uncomment the relevant code, and push your changes to pass the first stage:
-
-```sh
-git commit -am "pass 1st stage" # any msg
-git push origin master
+```bash
+./your_program.sh
 ```
 
-That's all!
+The server runs on port 6379 (standard Redis port).
 
-# Stage 2 & beyond
+## Testing
 
-Note: This section is for stages 2 and beyond.
+You can test it with `redis-cli` or netcat:
 
-1. Ensure you have `go (1.24)` installed locally
-1. Run `./your_program.sh` to run your Redis server, which is implemented in
-   `app/main.go`.
-1. Commit your changes and run `git push origin master` to submit your solution
-   to CodeCrafters. Test output will be streamed to your terminal.
+```bash
+# Using redis-cli
+redis-cli ping
+redis-cli set mykey "hello"
+redis-cli get mykey
+
+# Using netcat
+echo -e '*1\r\n$4\r\nPING\r\n' | nc localhost 6379
+```
+
+## Notes
+
+This is just a learning project - it implements the bare minimum of the Redis protocol to understand how it works. Don't use this in production! 😄

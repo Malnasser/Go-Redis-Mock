@@ -9,7 +9,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/codecrafters-io/redis-starter-go/app/resp"
+	"redis-server/app/resp"
 )
 
 type RedisServer struct {
