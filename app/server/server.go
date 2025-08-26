@@ -100,7 +100,7 @@ func (s *RedisServer) processCommand(value resp.Value) resp.Value {
 		s.mu.Lock()
 		s.storage[key] = value
 		s.mu.Unlock()
-		return resp.Value{Type: resp.SimpleString, String: "Ok"}
+		return resp.Value{Type: resp.SimpleString, String: "OK"}
 
 	case "GET":
 		if len(args) != 2 {
